@@ -1,0 +1,12 @@
+---
+- name: Redémarrer Prometheus
+  community.docker.docker_container:
+    name: "{{ prometheus_name }}"
+    state: started
+    restart: true
+
+- name: Redémarrer Grafana
+  community.docker.docker_container:
+    name: "{{ grafana_name }}"
+    state: started
+    restart: true

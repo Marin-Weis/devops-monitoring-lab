@@ -1,0 +1,32 @@
+---
+# Réseau Docker partagé par tous les conteneurs du lab
+lab_network: devops-lab
+
+# Répertoire de travail du lab (configs rendues, jamais versionné)
+lab_dir: "{{ playbook_dir }}/../.lab-data"
+
+# --- Application ---
+app_name: lab-app
+app_image: devops-lab/app
+app_tag: "1.0.0"
+app_build_dir: "{{ playbook_dir }}/../app"
+app_host_port: 8081
+app_error_rate: "0.05"
+
+# --- Prometheus ---
+prometheus_name: lab-prometheus
+prometheus_image: prom/prometheus:v2.55.1
+prometheus_host_port: 9090
+prometheus_scrape_interval: 5s
+# Seuils d'alerte (modifiables sans toucher aux templates)
+alert_error_ratio_threshold: 0.10   # 10 % de réponses 5xx
+alert_latency_p95_seconds: 0.5
+alert_for_duration: 30s
+
+# --- Grafana ---
+grafana_name: lab-grafana
+grafana_image: grafana/grafana:11.3.1
+grafana_host_port: 3000
+grafana_admin_user: admin
+grafana_admin_password: admin   # lab local uniquement, à surcharger avec ansible-vault ailleurs
+grafana_anonymous_access: false  # true = accès Viewer sans login (démos / captures d'écran)

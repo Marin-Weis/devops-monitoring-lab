@@ -1,0 +1,19 @@
+# Fichier généré par Ansible — ne pas éditer à la main.
+global:
+  scrape_interval: {{ prometheus_scrape_interval }}
+  evaluation_interval: {{ prometheus_scrape_interval }}
+
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: lab-app
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["{{ app_name }}:8000"]
+        labels:
+          service: devops-monitoring-lab

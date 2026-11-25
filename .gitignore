@@ -1,0 +1,6 @@
+.venv/
+.lab-data/
+__pycache__/
+.pytest_cache/
+*.retry
+.ansible/

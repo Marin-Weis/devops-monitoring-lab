@@ -1,0 +1,36 @@
+# Fichier généré par Ansible — ne pas éditer à la main.
+groups:
+  - name: lab-app-alerts
+    rules:
+      - alert: AppDown
+        expr: up{job="lab-app"} == 0
+        for: {{ alert_for_duration }}
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'application {% raw %}{{ $labels.instance }}{% endraw %} ne répond plus"
+          description: "Prometheus n'arrive plus à scraper /metrics depuis {{ alert_for_duration }}."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(app_http_requests_total{status=~"5.."}[1m]))
+            /
+          sum(rate(app_http_requests_total[1m])) > {{ alert_error_ratio_threshold }}
+        for: {{ alert_for_duration }}
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'erreurs 5xx supérieur à {{ (alert_error_ratio_threshold * 100) | int }} %"
+          description: "{% raw %}{{ $value | humanizePercentage }}{% endraw %} des requêtes échouent (fenêtre 1 min)."
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(app_http_request_duration_seconds_bucket[1m]))
+          ) > {{ alert_latency_p95_seconds }}
+        for: {{ alert_for_duration }}
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence p95 supérieure à {{ alert_latency_p95_seconds }} s"
+          description: "p95 actuel : {% raw %}{{ $value | humanizeDuration }}{% endraw %}."
