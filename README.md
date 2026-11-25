@@ -2,15 +2,15 @@
 
 [![CI](https://github.com/Marin-Weis/devops-monitoring-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Marin-Weis/devops-monitoring-lab/actions/workflows/ci.yml)
 
-Mini-lab d'**observabilité as code** : un service Python conteneurisé, déployé de façon **idempotente avec Ansible**, et supervisé par **Prometheus** (métriques + règles d'alerte) et **Grafana** (datasource et dashboard provisionnés automatiquement, sans aucune configuration manuelle dans l'interface).
+Hands-on **observability as code** lab: a containerised Python service deployed **idempotently with Ansible**, and monitored by **Prometheus** (scraping + alert rules) and **Grafana** (datasource and dashboard provisioned automatically, with zero manual UI setup).
 
-Projet d'apprentissage personnel réalisé pour monter en compétences sur Ansible, Prometheus/Grafana et l'automatisation de déploiement (CI/CD).
+Personal self-training project built to get practical experience with Ansible automation, Prometheus alerting, Grafana provisioning as code, and CI/CD pipelines.
 
-![Dashboard Grafana pendant un test avec 60 % d'erreurs](docs/grafana-dashboard.png)
+![Grafana dashboard during a 60% error chaos test](docs/grafana-dashboard.png)
 
-*Dashboard Grafana pendant un test de charge avec 60 % d'erreurs forcées : l'alerte `HighErrorRate` est en `firing`.*
+*Grafana dashboard during a load test with 60% forced HTTP 500 errors: the `HighErrorRate` alert is `firing`.*
 
-![Page des alertes Prometheus](docs/prometheus-alerts.png)
+![Prometheus alerts page](docs/prometheus-alerts.png)
 
 ## Architecture
 
@@ -20,10 +20,10 @@ flowchart LR
         R1[role app]
         R2[role monitoring]
     end
-    subgraph Docker["Réseau Docker : devops-lab"]
+    subgraph Docker["Docker network: devops-lab"]
         APP["lab-app<br/>Flask + gunicorn<br/>/metrics :8000"]
-        PROM["lab-prometheus<br/>scrape 5 s + alert rules"]
-        GRAF["lab-grafana<br/>dashboard provisionné"]
+        PROM["lab-prometheus<br/>5s scrape + alert rules"]
+        GRAF["lab-grafana<br/>provisioned dashboard"]
     end
     R1 -->|build image + run| APP
     R2 -->|templates + run| PROM
@@ -32,105 +32,109 @@ flowchart LR
     GRAF -->|PromQL| PROM
 ```
 
-| Service | URL locale | Rôle |
+| Service | Local URL | Role |
 |---|---|---|
-| Application | http://localhost:8081 | Service Flask instrumenté (`/work`, `/health`, `/metrics`) |
-| Prometheus | http://localhost:9090 | Collecte, stockage, règles d'alerte |
-| Grafana | http://localhost:3000 | Dashboard (`admin` / `admin`, lab local uniquement) |
+| Application | http://localhost:8081 | Instrumented Flask service (`/work`, `/health`, `/metrics`) |
+| Prometheus | http://localhost:9090 | Metrics scraping, storage, and alert rule evaluation |
+| Grafana | http://localhost:3000 | Pre-provisioned dashboard (`admin` / `admin`, local lab only) |
 
-## Démarrage rapide
+## Quick Start
 
-Prérequis : Docker, Python 3.10+, `make`.
+Prerequisites: Docker, Python 3.10+, `make`.
 
 ```bash
-make setup      # venv + Ansible + ansible-lint + collection community.docker
-make deploy     # déploie toute la stack (relançable sans effet de bord)
-make load       # 2 min de trafic à 10 req/s pour alimenter le dashboard
+make setup      # create venv + install Ansible, ansible-lint, community.docker
+make deploy     # deploy the full stack (idempotent, safe to re-run)
+make load       # generate 2 minutes of traffic (10 req/s) to populate graphs
 ```
 
-Ouvrir ensuite Grafana : le dashboard **« Lab DevOps — Vue d'ensemble de l'application »** est la page d'accueil.
+Then open Grafana: **“DevOps Lab — Application Overview”** is set as the default home dashboard.
 
-### Déclencher l'alerte
+### Triggering an Alert
 
 ```bash
-make chaos      # force 60 % d'erreurs 5xx sur /work
-make load       # génère du trafic
-# → HighErrorRate passe pending puis firing après 30 s (http://localhost:9090/alerts)
-make reset      # retour à 5 % d'erreurs
+make chaos      # force 60% HTTP 500 errors on /work
+make load       # generate traffic
+# -> HighErrorRate moves from pending to firing after 30s (http://localhost:9090/alerts)
+make reset      # restore error rate to 5%
 ```
 
-## Ce que fait chaque partie
+## Components
 
-### 1. Application (`app/`)
-Service Flask qui expose des métriques de type **RED** (Rate, Errors, Duration) avec `prometheus_client` :
+### 1. Instrumented Application (`app/`)
+A Flask service exposing **RED** metrics (Rate, Errors, Duration) using `prometheus_client`:
 
-| Métrique | Type | Usage |
+| Metric | Type | Purpose |
 |---|---|---|
-| `app_http_requests_total{method,endpoint,status}` | Counter | débit et taux d'erreurs |
-| `app_http_request_duration_seconds{endpoint}` | Histogram | percentiles de latence (p50/p95/p99) |
-| `app_http_requests_in_flight` | Gauge | requêtes en cours |
-| `app_jobs_processed_total{result}` | Counter | métrique métier (succès/erreur) |
+| `app_http_requests_total{method,endpoint,status}` | Counter | Request throughput and error ratio |
+| `app_http_request_duration_seconds{endpoint}` | Histogram | Latency percentiles (p50 / p95 / p99) |
+| `app_http_requests_in_flight` | Gauge | Concurrent requests currently being processed |
+| `app_jobs_processed_total{result}` | Counter | Business counter (`success` / `error`) |
 
-`POST /chaos/<taux>` (ex. `0.6`) modifie à chaud le taux d'erreurs simulées de `/work`, pour tester l'alerte. Image Docker : `python:3.12-slim`, utilisateur non-root, `HEALTHCHECK`, servie par gunicorn. 5 tests unitaires pytest.
+`POST /chaos/<rate>` (e.g. `0.6`) updates the simulated `/work` error rate at runtime to test alerting end to end. Docker image: `python:3.12-slim`, non-root user, `HEALTHCHECK`, served with gunicorn, covered by 5 pytest unit tests.
 
-### 2. Déploiement Ansible (`ansible/`)
-- **Inventaire** `inventory/hosts.yml` : hôte local en connexion `local` (remplaçable par une VM en SSH).
-- **Variables** `group_vars/all.yml` : ports, versions d'images, seuils d'alerte. Rien n'est codé en dur dans les rôles.
-- **Rôle `app`** : build de l'image (`docker_image`), lancement du conteneur (`docker_container`), redémarrage par *handler* uniquement si l'image change.
-- **Rôle `monitoring`** :
-  - rend `prometheus.yml` et `alert_rules.yml` depuis des templates Jinja2 ;
-  - **valide la config avec `promtool` avant de déployer** : une erreur de config fait échouer le playbook au lieu de casser Prometheus ;
-  - provisionne la datasource et le dashboard Grafana (as code) ;
-  - les *handlers* ne redémarrent Prometheus/Grafana que si un fichier de config change.
-- **Idempotence vérifiée** : un second `make deploy` donne `changed=0`.
-- **Playbook** `site.yml` : crée le réseau, applique les rôles, puis attend (`uri` + `retries`) que les trois services répondent.
+### 2. Idempotent Ansible Deployment (`ansible/`)
+- **Inventory** (`inventory/hosts.yml`): single local host via `ansible_connection: local` (easily swapped for a remote VM over SSH).
+- **Variables** (`group_vars/all.yml`): ports, image versions, scrape interval, and alert thresholds — nothing hardcoded inside roles.
+- **Role `app`**: builds the image (`docker_image`), starts the container (`docker_container`), and restarts via a *handler* only when the image changes.
+- **Role `monitoring`**:
+  - renders `prometheus.yml` and `alert_rules.yml` from Jinja2 templates;
+  - **validates configuration with `promtool` before deployment**: an invalid config fails the playbook instead of breaking Prometheus;
+  - provisions the Prometheus datasource and Grafana dashboard as code;
+  - *handlers* restart Prometheus/Grafana only when a configuration file changes.
+- **Verified idempotency**: a second `make deploy` reports `changed=0`.
+- **Playbook (`site.yml`)**: creates the Docker network, runs both roles, and waits (`uri` + `retries`) until all three services report healthy.
 
 ### 3. Prometheus
-- Scrape de l'application et de lui-même toutes les 5 s.
-- 3 règles d'alerte (`alert_rules.yml.j2`), seuils pilotés par variables :
+- Scrapes the application and itself every 5 seconds.
+- 3 alert rules (`alert_rules.yml.j2`) driven by `group_vars`:
 
-| Alerte | Condition | Sévérité |
+| Alert | Condition | Severity |
 |---|---|---|
-| `AppDown` | `up == 0` pendant 30 s | critical |
-| `HighErrorRate` | ratio de réponses 5xx > 10 % (fenêtre 1 min) | warning |
-| `HighLatencyP95` | p95 > 0,5 s (`histogram_quantile`) | warning |
+| `AppDown` | `up == 0` for 30s | critical |
+| `HighErrorRate` | 5xx ratio > 10% (1m window) | warning |
+| `HighLatencyP95` | p95 latency > 0.5s (`histogram_quantile`) | warning |
 
 ### 4. Grafana
-Dashboard généré par `scripts/generate_dashboard.py` (le JSON est versionné) : débit, taux d'erreurs, latence p95, requêtes en cours, débit par code HTTP, percentiles de latence, jobs par résultat, disponibilité des cibles et tableau des alertes actives (`ALERTS`).
+Dashboard generated via `scripts/generate_dashboard.py` (with the resulting JSON version-controlled): throughput, 5xx error rate, p95 latency, in-flight requests, throughput by HTTP status, latency percentiles, jobs by result, target availability (`up`), and active alerts table (`ALERTS`).
 
-## CI (GitHub Actions)
-À chaque push : tests pytest, `yamllint`, `ansible-lint`, vérification que le dashboard JSON est à jour, build de l'image Docker, et validation `promtool` de la configuration Prometheus rendue à partir des templates Ansible.
+## CI Pipeline (GitHub Actions)
+Runs on every push and pull request:
+- `pytest` unit tests
+- `yamllint` + `ansible-lint` (`production` profile)
+- Drift check ensuring the generated Grafana dashboard JSON is up to date
+- Docker image build
+- `promtool check config` on the Prometheus configuration rendered from Ansible templates
 
-## Structure
+## Repository Layout
 
 ```
 .
-├── app/                    # service Flask + Dockerfile + tests
+├── app/                    # Flask service + Dockerfile + unit tests
 ├── ansible/
-│   ├── site.yml            # playbook principal
+│   ├── site.yml            # Main playbook
 │   ├── inventory/hosts.yml
-│   ├── group_vars/all.yml  # variables (ports, versions, seuils)
+│   ├── group_vars/all.yml  # Ports, image versions, alert thresholds
 │   └── roles/
-│       ├── app/            # build + run du service
+│       ├── app/            # Build & run the Python service
 │       └── monitoring/     # Prometheus + Grafana (templates, dashboards, handlers)
 ├── scripts/
 │   ├── generate_dashboard.py
-│   └── loadgen.py          # générateur de trafic
+│   └── loadgen.py          # Traffic generator
 ├── .github/workflows/ci.yml
 └── Makefile                # setup, deploy, load, chaos, reset, lint, test, destroy
 ```
 
-## Pistes d'amélioration
-- Ajouter **Alertmanager** (notifications e-mail/Slack) et un exporter système (`node_exporter`, cAdvisor).
-- Cibler une VM distante en SSH et gérer les secrets avec `ansible-vault`.
-- Convertir l'inventaire en inventaire dynamique et découper en rôles réutilisables (Ansible Galaxy).
-- Tester les rôles avec Molecule.
+## Possible Next Steps
+- Add **Alertmanager** (email/Slack routing) and host/container exporters (`node_exporter`, cAdvisor).
+- Target a remote VM over SSH and encrypt secrets with `ansible-vault`.
+- Add role testing with Molecule.
 
-## Nettoyage
+## Cleanup
 
 ```bash
-make destroy    # supprime conteneurs, réseau, volumes et configs rendues
+make destroy    # remove containers, Docker network, volumes, and rendered configs
 ```
 
-## Licence
-MIT — projet pédagogique.
+## License
+MIT

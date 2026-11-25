@@ -1,6 +1,6 @@
 {
   "uid": "lab-app-overview",
-  "title": "Lab DevOps — Vue d'ensemble de l'application",
+  "title": "DevOps Lab — Application Overview",
   "tags": [
     "lab",
     "red-metrics"
@@ -17,7 +17,7 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Requêtes / s",
+      "title": "Requests / s",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -68,7 +68,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Taux d'erreurs 5xx",
+      "title": "5xx Error Rate",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -127,7 +127,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Latence p95",
+      "title": "Latency p95",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -186,7 +186,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Requêtes en cours",
+      "title": "In-Flight Requests",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -237,7 +237,7 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Débit par code HTTP",
+      "title": "Throughput by HTTP Status",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -282,7 +282,7 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "Latence (p50 / p95 / p99)",
+      "title": "Latency (p50 / p95 / p99)",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -345,7 +345,7 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Jobs traités par résultat",
+      "title": "Jobs Processed by Result",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -390,7 +390,7 @@
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Disponibilité des cibles (up)",
+      "title": "Target Availability (up)",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -435,7 +435,7 @@
     {
       "id": 9,
       "type": "table",
-      "title": "Alertes actives (firing / pending)",
+      "title": "Active Alerts (firing / pending)",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

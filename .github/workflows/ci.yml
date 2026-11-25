@@ -17,21 +17,21 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
 
-      - name: Installer les dépendances
+      - name: Install dependencies
         run: |
           pip install -r requirements-dev.txt
           ansible-galaxy collection install -r ansible/requirements.yml
 
-      - name: Tests unitaires
+      - name: Run unit tests
         run: cd app && python -m pytest -q
 
-      - name: yamllint
+      - name: Run yamllint
         run: yamllint -c .yamllint.yml ansible
 
-      - name: ansible-lint
+      - name: Run ansible-lint
         run: cd ansible && ansible-lint site.yml
 
-      - name: Vérifier que le dashboard JSON est à jour
+      - name: Verify Grafana dashboard JSON is up to date
         run: |
           python scripts/generate_dashboard.py
           git diff --exit-code ansible/roles/monitoring/files/dashboards/
@@ -41,7 +41,7 @@ jobs:
     needs: test-and-lint
     steps:
       - uses: actions/checkout@v4
-      - name: Build de l'image
+      - name: Build application Docker image
         run: docker build -t devops-lab/app:ci app
 
   validate-prometheus:
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Rendre la config via Ansible et la valider avec promtool
+      - name: Render Ansible templates and validate with promtool
         run: |
           pip install -r requirements-dev.txt
           python - <<'PY'

@@ -1,4 +1,4 @@
-# Fichier généré par Ansible — ne pas éditer à la main.
+# Managed by Ansible — do not edit manually.
 groups:
   - name: lab-app-alerts
     rules:
@@ -8,8 +8,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "L'application {% raw %}{{ $labels.instance }}{% endraw %} ne répond plus"
-          description: "Prometheus n'arrive plus à scraper /metrics depuis {{ alert_for_duration }}."
+          summary: "Application {% raw %}{{ $labels.instance }}{% endraw %} is down"
+          description: "Prometheus has been unable to scrape /metrics for {{ alert_for_duration }}."
 
       - alert: HighErrorRate
         expr: |
@@ -20,8 +20,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Taux d'erreurs 5xx supérieur à {{ (alert_error_ratio_threshold * 100) | int }} %"
-          description: "{% raw %}{{ $value | humanizePercentage }}{% endraw %} des requêtes échouent (fenêtre 1 min)."
+          summary: "5xx error rate above {{ (alert_error_ratio_threshold * 100) | int }}%"
+          description: "{% raw %}{{ $value | humanizePercentage }}{% endraw %} of requests are failing (1m window)."
 
       - alert: HighLatencyP95
         expr: |
@@ -32,5 +32,5 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Latence p95 supérieure à {{ alert_latency_p95_seconds }} s"
-          description: "p95 actuel : {% raw %}{{ $value | humanizeDuration }}{% endraw %}."
+          summary: "p95 latency above {{ alert_latency_p95_seconds }}s"
+          description: "Current p95 latency: {% raw %}{{ $value | humanizeDuration }}{% endraw %}."

@@ -1,14 +1,14 @@
 ---
-- name: Déployer la stack du lab (application + monitoring)
+- name: Deploy the lab stack (application + monitoring)
   hosts: lab
   gather_facts: false
   pre_tasks:
-    - name: Vérifier que le démon Docker répond
+    - name: Verify Docker daemon is reachable
       community.docker.docker_host_info:
       register: docker_info
       changed_when: false
 
-    - name: Créer le réseau Docker du lab
+    - name: Create the lab Docker network
       community.docker.docker_network:
         name: "{{ lab_network }}"
         state: present
@@ -20,7 +20,7 @@
       tags: [monitoring]
 
   post_tasks:
-    - name: Attendre que l'application réponde
+    - name: Wait for application health endpoint
       ansible.builtin.uri:
         url: "http://localhost:{{ app_host_port }}/health"
         status_code: 200
@@ -30,7 +30,7 @@
       until: app_health.status == 200
       changed_when: false
 
-    - name: Attendre que Prometheus soit prêt
+    - name: Wait for Prometheus readiness
       ansible.builtin.uri:
         url: "http://localhost:{{ prometheus_host_port }}/-/ready"
         status_code: 200
@@ -40,7 +40,7 @@
       until: prom_ready.status == 200
       changed_when: false
 
-    - name: Attendre que Grafana soit prêt
+    - name: Wait for Grafana readiness
       ansible.builtin.uri:
         url: "http://localhost:{{ grafana_host_port }}/api/health"
         status_code: 200
@@ -50,9 +50,9 @@
       until: grafana_ready.status == 200
       changed_when: false
 
-    - name: Afficher les URLs du lab
+    - name: Print lab service URLs
       ansible.builtin.debug:
         msg:
-          - "Application : http://localhost:{{ app_host_port }}  (métriques : /metrics)"
+          - "Application : http://localhost:{{ app_host_port }}  (metrics: /metrics)"
           - "Prometheus  : http://localhost:{{ prometheus_host_port }}"
           - "Grafana     : http://localhost:{{ grafana_host_port }}  ({{ grafana_admin_user }} / {{ grafana_admin_password }})"

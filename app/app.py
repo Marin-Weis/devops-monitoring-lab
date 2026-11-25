@@ -1,7 +1,7 @@
-"""Petit service HTTP instrumenté pour Prometheus.
+"""Small HTTP service instrumented for Prometheus.
 
-Il sert de « charge de travail » au lab : on y expose des métriques RED
-(Rate, Errors, Duration) + une jauge de requêtes en cours + un compteur métier.
+Acts as the lab workload: exposes RED metrics (Rate, Errors, Duration),
+an in-flight requests gauge, and a business job counter.
 """
 import os
 import random
@@ -17,7 +17,7 @@ from prometheus_client import (
     generate_latest,
 )
 
-# Taux d'erreurs simulées sur /work (0.0 → 1.0), réglable à chaud via l'API.
+# Simulated error rate on /work (0.0 -> 1.0), adjustable at runtime via POST /chaos/<rate>.
 ERROR_RATE = float(os.getenv("ERROR_RATE", "0.05"))
 
 
@@ -27,25 +27,25 @@ def create_app() -> Flask:
 
     requests_total = Counter(
         "app_http_requests_total",
-        "Nombre total de requêtes HTTP",
+        "Total number of HTTP requests",
         ["method", "endpoint", "status"],
         registry=registry,
     )
     request_latency = Histogram(
         "app_http_request_duration_seconds",
-        "Latence des requêtes HTTP en secondes",
+        "HTTP request latency in seconds",
         ["endpoint"],
         buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
         registry=registry,
     )
     in_flight = Gauge(
         "app_http_requests_in_flight",
-        "Requêtes HTTP en cours de traitement",
+        "HTTP requests currently in flight",
         registry=registry,
     )
     jobs_total = Counter(
         "app_jobs_processed_total",
-        "Jobs métier traités par /work",
+        "Business jobs processed by /work",
         ["result"],
         registry=registry,
     )
@@ -58,7 +58,7 @@ def create_app() -> Flask:
 
     @app.after_request
     def _record_metrics(response):
-        # On ignore /metrics pour ne pas polluer les statistiques applicatives.
+        # Exclude /metrics to avoid polluting application traffic stats.
         if request.path != "/metrics":
             endpoint = request.url_rule.rule if request.url_rule else "unmatched"
             elapsed = time.perf_counter() - g.start
@@ -77,19 +77,19 @@ def create_app() -> Flask:
 
     @app.get("/work")
     def work():
-        """Simule un traitement : latence aléatoire et erreurs 500 occasionnelles."""
+        """Simulate work with random latency and occasional HTTP 500 errors."""
         time.sleep(random.uniform(0.01, 0.25))
         if random.random() < app.config["ERROR_RATE"]:
             jobs_total.labels("error").inc()
-            return jsonify(error="échec simulé"), 500
+            return jsonify(error="simulated failure"), 500
         jobs_total.labels("success").inc()
-        return jsonify(result="job terminé")
+        return jsonify(result="job completed")
 
     @app.post("/chaos/<float:rate>")
     def chaos(rate: float):
-        """Change le taux d'erreurs à chaud (utile pour déclencher l'alerte)."""
+        """Update the simulated error rate at runtime (useful to trigger alerts)."""
         if not 0.0 <= rate <= 1.0:
-            return jsonify(error="le taux doit être entre 0 et 1"), 400
+            return jsonify(error="rate must be between 0 and 1"), 400
         app.config["ERROR_RATE"] = rate
         return jsonify(error_rate=rate)
 

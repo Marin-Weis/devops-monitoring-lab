@@ -1,6 +1,6 @@
 ---
-# Rôle "monitoring" : Prometheus (scrape + règles d'alerte) puis Grafana (provisioning as code).
-- name: Créer l'arborescence de configuration
+# Role "monitoring": Prometheus (scraping + alert rules) and Grafana (provisioning as code).
+- name: Create configuration directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -13,21 +13,21 @@
     - "{{ lab_dir }}/grafana/dashboards"
 
 # ---------- Prometheus ----------
-- name: Rendre la configuration Prometheus
+- name: Render Prometheus configuration
   ansible.builtin.template:
     src: prometheus.yml.j2
     dest: "{{ lab_dir }}/prometheus/prometheus.yml"
     mode: "0644"
-  notify: Redémarrer Prometheus
+  notify: Restart Prometheus
 
-- name: Rendre les règles d'alerte Prometheus
+- name: Render Prometheus alert rules
   ansible.builtin.template:
     src: alert_rules.yml.j2
     dest: "{{ lab_dir }}/prometheus/alert_rules.yml"
     mode: "0644"
-  notify: Redémarrer Prometheus
+  notify: Restart Prometheus
 
-- name: Valider la configuration avec promtool avant de la déployer
+- name: Validate Prometheus configuration with promtool before deployment
   community.docker.docker_container:
     name: "{{ prometheus_name }}-check"
     image: "{{ prometheus_image }}"
@@ -42,7 +42,7 @@
   changed_when: false
   failed_when: monitoring_promtool_result.status | default(0) != 0
 
-- name: Lancer Prometheus
+- name: Run Prometheus container
   community.docker.docker_container:
     name: "{{ prometheus_name }}"
     image: "{{ prometheus_image }}"
@@ -57,27 +57,27 @@
       - "lab-prometheus-data:/prometheus"
 
 # ---------- Grafana ----------
-- name: Provisionner la datasource Prometheus
+- name: Provision Prometheus datasource
   ansible.builtin.template:
     src: grafana_datasource.yml.j2
     dest: "{{ lab_dir }}/grafana/provisioning/datasources/prometheus.yml"
     mode: "0644"
-  notify: Redémarrer Grafana
+  notify: Restart Grafana
 
-- name: Provisionner le fournisseur de dashboards
+- name: Provision Grafana dashboard provider
   ansible.builtin.template:
     src: grafana_dashboards.yml.j2
     dest: "{{ lab_dir }}/grafana/provisioning/dashboards/default.yml"
     mode: "0644"
-  notify: Redémarrer Grafana
+  notify: Restart Grafana
 
-- name: Déployer le dashboard JSON
+- name: Deploy Grafana dashboard JSON
   ansible.builtin.copy:
     src: dashboards/app-overview.json
     dest: "{{ lab_dir }}/grafana/dashboards/app-overview.json"
     mode: "0644"
 
-- name: Lancer Grafana
+- name: Run Grafana container
   community.docker.docker_container:
     name: "{{ grafana_name }}"
     image: "{{ grafana_image }}"

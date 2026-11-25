@@ -1,16 +1,16 @@
 ---
-# Rôle "app" : construit l'image Docker du service Python et lance le conteneur.
-- name: Construire l'image de l'application
+# Role "app": builds the Python service Docker image and runs the container.
+- name: Build application Docker image
   community.docker.docker_image:
     name: "{{ app_image }}"
     tag: "{{ app_tag }}"
     source: build
     build:
       path: "{{ app_build_dir }}"
-    force_source: false   # ne rebuild que si le contexte change → idempotent
-  notify: Redémarrer l'application
+    force_source: false   # only rebuild when build context changes -> idempotent
+  notify: Restart application
 
-- name: Lancer le conteneur de l'application
+- name: Run application container
   community.docker.docker_container:
     name: "{{ app_name }}"
     image: "{{ app_image }}:{{ app_tag }}"

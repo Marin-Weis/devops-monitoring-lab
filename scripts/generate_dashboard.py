@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Génère le dashboard Grafana (JSON) du lab.
+"""Generate the Grafana dashboard JSON for the lab.
 
-Le JSON produit est versionné dans ansible/roles/monitoring/files/dashboards/.
-Garder le générateur permet de modifier les panneaux sans éditer un gros JSON à la main :
+The generated JSON is version-controlled in ansible/roles/monitoring/files/dashboards/.
+Keeping this generator makes panel edits reproducible without hand-editing raw JSON:
     python scripts/generate_dashboard.py
 """
 import json
@@ -53,27 +53,27 @@ def timeseries(title, targets, x, y, w=12, h=8, unit="short") -> dict:
 
 
 panels = [
-    stat("Requêtes / s", 'sum(rate(app_http_requests_total[1m]))', 0, unit="reqps", decimals=2),
+    stat("Requests / s", 'sum(rate(app_http_requests_total[1m]))', 0, unit="reqps", decimals=2),
     stat(
-        "Taux d'erreurs 5xx",
+        "5xx Error Rate",
         'sum(rate(app_http_requests_total{status=~"5.."}[1m])) / sum(rate(app_http_requests_total[1m]))',
         6, unit="percentunit", decimals=1,
         thresholds=[{"color": "green", "value": None}, {"color": "orange", "value": 0.05}, {"color": "red", "value": 0.10}],
     ),
     stat(
-        "Latence p95",
+        "Latency p95",
         'histogram_quantile(0.95, sum by (le) (rate(app_http_request_duration_seconds_bucket[1m])))',
         12, unit="s", decimals=3,
         thresholds=[{"color": "green", "value": None}, {"color": "orange", "value": 0.3}, {"color": "red", "value": 0.5}],
     ),
-    stat("Requêtes en cours", 'sum(app_http_requests_in_flight)', 18, decimals=0),
+    stat("In-Flight Requests", 'sum(app_http_requests_in_flight)', 18, decimals=0),
     timeseries(
-        "Débit par code HTTP",
+        "Throughput by HTTP Status",
         [target('sum by (status) (rate(app_http_requests_total[1m]))', "{{status}}")],
         0, 4, unit="reqps",
     ),
     timeseries(
-        "Latence (p50 / p95 / p99)",
+        "Latency (p50 / p95 / p99)",
         [
             target('histogram_quantile(0.50, sum by (le) (rate(app_http_request_duration_seconds_bucket[1m])))', "p50", "A"),
             target('histogram_quantile(0.95, sum by (le) (rate(app_http_request_duration_seconds_bucket[1m])))', "p95", "B"),
@@ -82,17 +82,17 @@ panels = [
         12, 4, unit="s",
     ),
     timeseries(
-        "Jobs traités par résultat",
+        "Jobs Processed by Result",
         [target('sum by (result) (rate(app_jobs_processed_total[1m]))', "{{result}}")],
         0, 12, unit="ops",
     ),
     timeseries(
-        "Disponibilité des cibles (up)",
+        "Target Availability (up)",
         [target('up', "{{job}}")],
         12, 12,
     ),
     {
-        "id": _id(), "type": "table", "title": "Alertes actives (firing / pending)", "datasource": DS,
+        "id": _id(), "type": "table", "title": "Active Alerts (firing / pending)", "datasource": DS,
         "gridPos": {"x": 0, "y": 20, "w": 24, "h": 6},
         "targets": [target('ALERTS{alertstate=~"firing|pending"}', instant=True)],
         "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": True, "__name__": True, "Value": True}}}],
@@ -103,7 +103,7 @@ panels = [
 
 dashboard = {
     "uid": "lab-app-overview",
-    "title": "Lab DevOps — Vue d'ensemble de l'application",
+    "title": "DevOps Lab — Application Overview",
     "tags": ["lab", "red-metrics"],
     "timezone": "browser",
     "schemaVersion": 39,
@@ -115,4 +115,4 @@ dashboard = {
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(json.dumps(dashboard, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-print(f"Dashboard écrit : {OUT}")
+print(f"Dashboard written: {OUT}")
